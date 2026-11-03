@@ -41,12 +41,16 @@ Students book slots on machines and report faults. The app detects unfulfilled b
 
 ## Proposed tech stack
 
-| | |
+| Component | Technology |
 |---|---|
+| core-service | Java + Spring Boot |
+| notification-service | Java + Spring Boot |
+| MCP server | Java |
+| AI agent | Python |
+| Web client | React (React Native planned for the mobile app) |
+| Database | PostgreSQL (accessed only by core-service) |
 | Message broker | Apache Kafka |
 | API | REST, documented with OpenAPI |
-| Database | PostgreSQL (accessed only by core-service) |
-| MCP | Remote MCP server with read and propose tools |
 | AI | Pre-trained LLM used through an API, no custom training |
 | Deployment | Docker and docker-compose, one container per service |
 
@@ -83,8 +87,6 @@ To be completed once the stack and project skeleton are decided.
 ```bash
 # docker compose up
 ```
-
-## Team
 
 ## Team
 
