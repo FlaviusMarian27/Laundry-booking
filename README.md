@@ -22,6 +22,22 @@ Students book slots on machines and report faults. The app detects unfulfilled b
 
 **Out of scope:** no payments and no connection to real machines. Authentication is simple and all data is test data.
 
+## Project structure
+
+```
+Laundry-booking/
+├── core-service/          # Java + Spring Boot – REST API, single writer to PostgreSQL, Kafka producer
+├── notification-service/  # Java + Spring Boot – consumes events, keeps its own copy, sends notifications
+├── mcp-server/            # Java – remote MCP server with read and propose tools
+├── agent/                 # Python – daily AI agent that uses the MCP tools
+├── web-client/            # React – student and admin UI
+├── docs/                  # architecture diagram, presentation, OpenAPI spec, event formats
+├── docker-compose.yml     # Kafka, PostgreSQL and all services
+└── .env.example           # environment variables template (no real secrets)
+```
+
+See [`docs/structure.md`](docs/structure.md) for the detailed layout of each service.
+
 ## Actors
 
 | Actor | What they do |
