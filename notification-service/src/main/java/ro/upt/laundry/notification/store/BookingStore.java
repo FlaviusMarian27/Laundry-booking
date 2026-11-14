@@ -14,9 +14,14 @@ public class BookingStore {
     private final Map<Long, BookingView> bookings = new ConcurrentHashMap<>();
     private final Set<String> processedEventIds = ConcurrentHashMap.newKeySet();
 
-    /** Returns false if the event was already processed (duplicate). */
-    public boolean markProcessed(String eventId) {
-        return processedEventIds.add(eventId);
+    /** True if this event was already applied to the local copy. */
+    public boolean isProcessed(String eventId) {
+        return processedEventIds.contains(eventId);
+    }
+
+    /** Call only after the event was applied successfully. */
+    public void markProcessed(String eventId) {
+        processedEventIds.add(eventId);
     }
 
     public void save(BookingView booking) {
