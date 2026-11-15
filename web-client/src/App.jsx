@@ -1,42 +1,10 @@
-
 import { useState } from 'react'
 import './App.css'
+import StudentDashboard from './StudentDashboard'
+import useLaundryData from './useLaundryData'
 
-// Date fictive, până când avem backend-ul
-const machines = [
-  { id: 1, name: 'Mașina de spălat 01', status: 'Disponibilă', type: 'Spălare' },
-  { id: 2, name: 'Mașina de spălat 02', status: 'Ocupată', type: 'Spălare' },
-  { id: 3, name: 'Mașina de spălat 03', status: 'Disponibilă', type: 'Spălare' },
-  { id: 4, name: 'Uscător 01', status: 'Defectă', type: 'Uscare' },
-]
-
-const bookings = [
-  { id: 1, student: 'Ana Popescu', machine: 'Mașina 01', time: '10:00 - 11:00', status: 'Activă' },
-  { id: 2, student: 'Andrei Ionescu', machine: 'Mașina 02', time: '12:00 - 13:00', status: 'Confirmată' },
-  { id: 3, student: 'Maria Georgescu', machine: 'Mașina 03', time: '15:00 - 16:00', status: 'Activă' },
-]
-
-const faults = [
-  { id: 1, machine: 'Uscător 01', issue: 'Nu mai încălzește', status: 'Nerezolvată' },
-  { id: 2, machine: 'Mașina 02', issue: 'Vibrații puternice', status: 'În analiză' },
-]
-
-const initialProposals = [
-  {
-    id: 1,
-    type: 'Mentenanță',
-    title: 'Verificare Uscător 01',
-    reason: 'Au fost raportate probleme de încălzire.',
-    status: 'În așteptare',
-  },
-  {
-    id: 2,
-    type: 'Penalizare',
-    title: 'Posibil no-show repetat',
-    reason: 'Un student a acumulat rezervări neutilizate.',
-    status: 'În așteptare',
-  },
-]
+const faults = []
+const initialProposals = []
 
 const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: '📊' },
@@ -64,92 +32,72 @@ function Status({ value }) {
 
 // Pagina de alegere a rolului
 function RoleSelection({ onSelect }) {
-  return (
-    <div className="role-page">
-      <div className="role-container">
-        <div className="brand-icon">🧺</div>
+  return <LoginPage onLogin={onSelect} />
+}
 
+function LoginPage({ onLogin }) {
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+
+  function handleSubmit(event) {
+    event.preventDefault()
+    const account = username.trim()
+
+    if ((account === 'student' || account === 'admin') && password === account) {
+      onLogin(account)
+      return
+    }
+
+    setError('Utilizator sau parolă incorectă.')
+  }
+
+  return (
+    <main className="role-page">
+      <div className="role-container login-container">
+        <div className="brand-icon" aria-hidden="true">🧺</div>
         <h1>Laundry Booking</h1>
         <p>Rezervă simplu. Spală fără griji.</p>
-
-        <h2>Bine ai venit!</h2>
-        <p>Alege cum dorești să continui.</p>
-
-        <div className="role-cards">
-          <button
-            className="role-card"
-            onClick={() => onSelect('student')}
-          >
-            <span className="role-icon">🎓</span>
-            <h3>Student</h3>
-            <span>Rezervă mașini și verifică disponibilitatea.</span>
-            <strong>Continuă ca student →</strong>
-          </button>
-
-          <button
-            className="role-card"
-            onClick={() => onSelect('admin')}
-          >
-            <span className="role-icon">🛡️</span>
-            <h3>Administrator</h3>
-            <span>Gestionează mașinile, rezervările și propunerile AI.</span>
-            <strong>Continuă ca administrator →</strong>
-          </button>
-        </div>
-
-        <p className="demo-note">
-          Mod demonstrativ — fără autentificare reală
-        </p>
+        <form className="login-form" onSubmit={handleSubmit}>
+          <h2>Conectare</h2>
+          <p>Introdu datele contului tău.</p>
+          <label htmlFor="username">Email sau utilizator</label>
+          <input
+            id="username"
+            name="username"
+            type="text"
+            autoComplete="username"
+            placeholder="student sau admin"
+            value={username}
+            onChange={(event) => { setUsername(event.target.value); setError('') }}
+            required
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? 'login-error' : undefined}
+          />
+          <label htmlFor="password">Parolă</label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            placeholder="Introdu parola"
+            value={password}
+            onChange={(event) => { setPassword(event.target.value); setError('') }}
+            required
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? 'login-error' : undefined}
+          />
+          {error && <p id="login-error" className="login-error" role="alert">{error}</p>}
+          <button className="primary-btn" type="submit">Conectează-te</button>
+          <p className="demo-note">Conturi demo: student / student sau admin / admin.</p>
+        </form>
       </div>
-    </div>
+    </main>
   )
 }
 
-// Interfața studentului
-function StudentDashboard({ onLogout }) {
-  return (
-    <div className="app">
-      <header className="navbar">
-        <h2>🧺 Laundry Booking</h2>
-        <div className="header-actions">
-          <span>🎓 Student</span>
-          <button className="logout-btn" onClick={onLogout}>
-            Ieșire
-          </button>
-        </div>
-      </header>
-
-      <main className="dashboard">
-        <h1>Bine ai venit! 👋</h1>
-        <p>Alege o mașină și rezervă un interval disponibil.</p>
-
-        <h2>Mașinile din cămin</h2>
-
-        <div className="machines-grid">
-          {machines.map((machine) => (
-            <div className="machine-card" key={machine.id}>
-              <div className="machine-icon">🧺</div>
-              <h3>{machine.name}</h3>
-              <p className="muted">{machine.type}</p>
-              <Status value={machine.status} />
-
-              <button
-                className="primary-btn"
-                disabled={machine.status !== 'Disponibilă'}
-                onClick={() => alert(`Ai selectat ${machine.name}. Formularul de rezervare va fi adăugat ulterior.`)}
-              >
-                Rezervă
-              </button>
-            </div>
-          ))}
-        </div>
-      </main>
-    </div>
-  )
-}
-
-// Interfața administratorului
 function AdminDashboard({ onLogout }) {
+  const { machines, bookings } = useLaundryData()
   const [activePage, setActivePage] = useState('dashboard')
   const [proposals, setProposals] = useState(initialProposals)
 
@@ -206,9 +154,8 @@ function AdminDashboard({ onLogout }) {
           {activePage === 'dashboard' && (
             <>
               <div className="stats-grid">
-                <StatCard icon="🧺" label="Total mașini" value={machines.length} />
-                <StatCard icon="✅" label="Disponibile" value={machines.filter(m => m.status === 'Disponibilă').length} />
-                <StatCard icon="📅" label="Rezervări" value={bookings.length} />
+                <StatCard icon="🧺" label="Mașini de spălat" value={machines.filter((machine) => machine.type === 'Spălare').length} /><StatCard icon="☀️" label="Uscătoare" value={machines.filter((machine) => machine.type === 'Uscare').length} />
+                <StatCard icon="📅" label="Rezervări active" value={bookings.filter((booking) => booking.status === 'Activă').length} />
                 <StatCard icon="🤖" label="Propuneri AI noi" value={pending} />
               </div>
 
@@ -232,7 +179,7 @@ function AdminDashboard({ onLogout }) {
 
           {activePage === 'machines' && (
             <section className="content-card">
-              <h2>Gestionarea mașinilor</h2>
+              <h2>Mașini de spălat și uscătoare</h2>
               <div className="table-wrapper">
                 <table>
                   <thead>
@@ -262,12 +209,13 @@ function AdminDashboard({ onLogout }) {
                     <tr><th>Student</th><th>Mașină</th><th>Interval</th><th>Status</th></tr>
                   </thead>
                   <tbody>
+                    {bookings.length === 0 && <tr><td colSpan={4}>Nu există rezervări înregistrate.</td></tr>}
                     {bookings.map((booking) => (
                       <tr key={booking.id}>
                         <td>{booking.student}</td>
                         <td>{booking.machine}</td>
                         <td>{booking.time}</td>
-                        <td><Status value={booking.status} /></td>
+                        <td><Status value={booking.status} />{booking.reason && <p>{booking.reason}</p>}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -278,7 +226,7 @@ function AdminDashboard({ onLogout }) {
 
           {activePage === 'faults' && (
             <section className="content-card">
-              <h2>Defecțiuni raportate</h2>
+              <h2>Defecțiuni raportate</h2>{faults.length === 0 && <p>Nu există defecțiuni raportate.</p>}
               {faults.map((fault) => (
                 <div className="list-row" key={fault.id}>
                   <div>
@@ -293,7 +241,7 @@ function AdminDashboard({ onLogout }) {
 
           {activePage === 'proposals' && (
             <section className="content-card">
-              <h2>🤖 Propunerile agentului AI</h2>
+              <h2>🤖 Propunerile agentului AI</h2>{proposals.length === 0 && <p>Nu există propuneri AI disponibile.</p>}
               <p>Administratorul trebuie să aprobe sau să respingă fiecare propunere.</p>
 
               {proposals.map((proposal) => (
