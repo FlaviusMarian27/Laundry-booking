@@ -1,4 +1,3 @@
-
 :root {
   --primary: #07594d;
   --primary-hover: #06473e;
@@ -110,6 +109,62 @@ button {
 }
 
 /* STUDENT DASHBOARD */
+
+.login-container {
+  max-width: 460px;
+}
+
+.login-form {
+  margin-top: 30px;
+  padding: 32px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  text-align: left;
+  box-shadow: 0 12px 30px rgba(7, 89, 77, 0.08);
+}
+
+.login-form h2 {
+  margin: 0;
+}
+
+.login-form label {
+  display: block;
+  margin: 20px 0 8px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.login-form input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font: inherit;
+  color: var(--text);
+  background: var(--white);
+}
+
+.login-form input:focus-visible,
+.login-form button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+
+.login-form input[aria-invalid="true"] {
+  border-color: #b54c35;
+}
+
+.login-form .login-error {
+  color: #b54c35;
+}
+
+.login-form .demo-note {
+  text-align: center;
+  line-height: 1.6;
+  margin-bottom: 0;
+}
 
 .app {
   min-height: 100vh;
