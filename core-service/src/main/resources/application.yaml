@@ -1,0 +1,16 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: core-service
+  config:
+    import: optional:file:.env[.properties]
+  datasource:
+    url: jdbc:postgresql://localhost:5432/${POSTGRES_DB:laundry}
+    username: ${POSTGRES_USER:laundry}
+    password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
