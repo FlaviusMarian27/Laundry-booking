@@ -7,12 +7,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.listener.ConsumerSeekAware;
 import org.springframework.stereotype.Component;
+import ro.upt.laundry.notification.notify.Notifier;
 import ro.upt.laundry.notification.store.BookingStore;
 import ro.upt.laundry.notification.store.BookingView;
-import tools.jackson.core.JacksonException;
-import tools.jackson.databind.ObjectMapper;
 
-import java.time.Instant;
 import java.util.Map;
 
 /**
@@ -23,22 +21,23 @@ import java.util.Map;
  * only AFTER it was applied successfully. If applying throws, Spring Kafka retries
  * the record and the retry is processed normally instead of being treated as a duplicate.
  *
- * Concurrency: the listener runs on a single consumer thread, so the
- * "check isProcessed -> apply -> markProcessed" sequence is not interleaved.
- * HTTP threads only read the store (ConcurrentHashMap + immutable records).
+ * Concurrency: each listener in this service runs on its own consumer thread and writes
+ * only to its own store (bookings here). HTTP threads only read the stores
+ * (ConcurrentHashMap + immutable records), so there is never more than one writer per store.
  */
 @Component
 public class BookingEventsListener implements ConsumerSeekAware {
 
     private static final Logger log = LoggerFactory.getLogger(BookingEventsListener.class);
 
-    private final ObjectMapper mapper;
+    private final EventSupport events;
     private final BookingStore store;
-    private final Instant serviceStartedAt = Instant.now();
+    private final Notifier notifier;
 
-    public BookingEventsListener(ObjectMapper mapper, BookingStore store) {
-        this.mapper = mapper;
+    public BookingEventsListener(EventSupport events, BookingStore store, Notifier notifier) {
+        this.events = events;
         this.store = store;
+        this.notifier = notifier;
     }
 
     /** On every start, re-read the topic from the beginning to rebuild the in-memory copy. */
@@ -48,22 +47,18 @@ public class BookingEventsListener implements ConsumerSeekAware {
         log.info("Rebuilding booking copy from the beginning of {}", assignments.keySet());
     }
 
-    @KafkaListener(topics = "bookings.events")
+    @KafkaListener(topics = "bookings.events", groupId = "notification-service")
     public void onMessage(ConsumerRecord<String, String> record) {
-        EventEnvelope event;
-        BookingPayload p;
-        try {
-            event = mapper.readValue(record.value(), EventEnvelope.class);
-            if (event.eventId() == null || event.type() == null || event.payload() == null) {
-                throw new IllegalArgumentException("missing eventId, type or payload");
-            }
-            p = mapper.treeToValue(event.payload(), BookingPayload.class);
-            if (p.bookingId() == null) {
-                throw new IllegalArgumentException("missing bookingId");
-            }
-        } catch (JacksonException | IllegalArgumentException e) {
-            log.warn("Skipping invalid message [partition={}, offset={}]: {}",
-                    record.partition(), record.offset(), e.getMessage());
+        EventEnvelope event = events.parse(record).orElse(null);
+        if (event == null) {
+            return;
+        }
+        BookingPayload p = events.payload(record, event, BookingPayload.class).orElse(null);
+        if (p == null) {
+            return;
+        }
+        if (p.bookingId() == null) {
+            events.skip(record, "missing bookingId");
             return;
         }
 
@@ -73,8 +68,7 @@ public class BookingEventsListener implements ConsumerSeekAware {
             return;
         }
 
-        // Only notify for messages produced after this service started, not for replayed ones
-        boolean live = Instant.ofEpochMilli(record.timestamp()).isAfter(serviceStartedAt);
+        boolean live = events.isLive(record);
 
         // 2. Apply (if this throws, the event is NOT marked and the retry will apply it)
         switch (event.type()) {
@@ -82,17 +76,24 @@ public class BookingEventsListener implements ConsumerSeekAware {
                 store.save(new BookingView(p.bookingId(), p.userId(), p.machineId(),
                         p.startTime(), p.endTime(), "CREATED"));
                 log.info("Booking {} stored (live={})", p.bookingId(), live);
-                if (live) notify(p.userId(), "Rezervarea #%d pe mașina %d începe la %s"
+                if (live) notifier.toUser(p.userId(), "Rezervarea #%d pe mașina %d începe la %s"
                         .formatted(p.bookingId(), p.machineId(), p.startTime()));
             }
             case "booking.cancelled" -> {
                 updateStatus(p.bookingId(), "CANCELLED");
-                if (live) notify(p.userId(), "Rezervarea #%d a fost anulată".formatted(p.bookingId()));
+                if (live) {
+                    String message = "maintenance".equals(p.reason())
+                            ? "Rezervarea #%d a fost anulată: mașina %d intră în mentenanță"
+                                    .formatted(p.bookingId(), p.machineId())
+                            : "Rezervarea #%d a fost anulată".formatted(p.bookingId());
+                    notifier.toUser(p.userId(), message);
+                }
             }
             case "booking.started" -> updateStatus(p.bookingId(), "STARTED");
             case "booking.noshow" -> {
                 updateStatus(p.bookingId(), "NO_SHOW");
-                if (live) notify(p.userId(), "Nu te-ai prezentat la rezervarea #%d".formatted(p.bookingId()));
+                if (live) notifier.toUser(p.userId(),
+                        "Nu te-ai prezentat la rezervarea #%d".formatted(p.bookingId()));
             }
             default -> log.debug("Ignoring unknown event type {}", event.type());
         }
@@ -105,9 +106,5 @@ public class BookingEventsListener implements ConsumerSeekAware {
         if (!store.updateStatus(bookingId, status)) {
             log.warn("Booking {} not found in local copy, cannot set status {}", bookingId, status);
         }
-    }
-
-    private void notify(Long userId, String message) {
-        log.info("NOTIFICATION -> user {}: {}", userId, message);
     }
 }
