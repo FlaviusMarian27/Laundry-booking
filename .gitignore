@@ -27,4 +27,7 @@ Thumbs.db
 
 # Docker / date locale
 *.log
-data/s
+data/
+
+# Local run state (scripts/start.sh)
+.run/

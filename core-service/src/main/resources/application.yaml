@@ -9,7 +9,15 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/${POSTGRES_DB:laundry}
     username: ${POSTGRES_USER:laundry}
-    password: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    password: ${POSTGRES_PASSWORD}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all                      # wait until the broker has stored the message
+      properties:
+        enable.idempotence: true     # producer retries never create duplicates in Kafka
   jpa:
     open-in-view: false
     hibernate:

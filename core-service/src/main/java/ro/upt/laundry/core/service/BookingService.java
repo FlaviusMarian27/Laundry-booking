@@ -8,6 +8,9 @@ import org.springframework.beans.factory.annotation.Value;
 import ro.upt.laundry.core.dto.BookingResponse;
 import ro.upt.laundry.core.dto.CreateBookingRequest;
 import ro.upt.laundry.core.exception.ApiException;
+import ro.upt.laundry.core.events.EventPayloads;
+import ro.upt.laundry.core.events.EventRecorder;
+import ro.upt.laundry.core.events.Topics;
 import ro.upt.laundry.core.model.*;
 import ro.upt.laundry.core.repository.BookingRepository;
 import ro.upt.laundry.core.repository.MachineRepository;
@@ -26,15 +29,18 @@ public class BookingService {
     private final UserRepository users;
     private final Clock clock;
     private final Duration noShowGrace;
+    private final EventRecorder events;
 
     public BookingService(BookingRepository bookings, MachineRepository machines, UserRepository users,
                       Clock clock,
-                      @Value("${laundry.booking.noshow-grace:10m}") Duration noShowGrace) {
+                      @Value("${laundry.booking.noshow-grace:10m}") Duration noShowGrace,
+                      EventRecorder events) {
         this.bookings = bookings;
         this.machines = machines;
         this.users = users;
         this.clock = clock;
         this.noShowGrace = noShowGrace;
+        this.events = events;
     }
 
     @Transactional
@@ -56,6 +62,9 @@ public class BookingService {
         try {
             Booking saved = bookings.saveAndFlush(
                     new Booking(req.userId(), req.machineId(), req.startTime(), req.endTime()));
+            events.record(Topics.BOOKINGS, saved.getId(), "booking.created",
+                    new EventPayloads.BookingCreated(saved.getId(), saved.getUserId(), saved.getMachineId(),
+                            saved.getStartTime(), saved.getEndTime()));
             return BookingResponse.from(saved);
         } catch (DataIntegrityViolationException e) {
             throw new ApiException(HttpStatus.CONFLICT, "Machine is already booked in that interval");
@@ -79,6 +88,7 @@ public class BookingService {
             throw new ApiException(HttpStatus.CONFLICT, "Only a CREATED booking can be cancelled");
         }
         b.markCancelled();
+        recordCancelled(b, "user_cancelled");
         return BookingResponse.from(b);
     }
 
@@ -93,7 +103,14 @@ public class BookingService {
             throw new ApiException(HttpStatus.CONFLICT, "Booking can be started only during its time slot");
         }
         b.markStarted(now);
+        events.record(Topics.BOOKINGS, b.getId(), "booking.started",
+                new EventPayloads.BookingStarted(b.getId(), b.getUserId(), b.getMachineId(), now));
         return BookingResponse.from(b);
+    }
+
+    private void recordCancelled(Booking b, String reason) {
+        events.record(Topics.BOOKINGS, b.getId(), "booking.cancelled",
+                new EventPayloads.BookingCancelled(b.getId(), b.getUserId(), b.getMachineId(), reason));
     }
 
     private Booking find(Long id) {
@@ -114,7 +131,10 @@ public class BookingService {
     public List<BookingResponse> cancelUpcomingForMachine(Long machineId) {
         List<Booking> upcoming = bookings.findByMachineIdAndStatusAndEndTimeAfter(
                 machineId, BookingStatus.CREATED, clock.instant());
-        upcoming.forEach(Booking::markCancelled);
+        upcoming.forEach(b -> {
+            b.markCancelled();
+            recordCancelled(b, "maintenance");
+        });
         return upcoming.stream().map(BookingResponse::from).toList();
     }
 
@@ -122,7 +142,11 @@ public class BookingService {
     public List<BookingResponse> markNoShows() {
         Instant threshold = clock.instant().minus(noShowGrace);
         List<Booking> late = bookings.findByStatusAndStartTimeBefore(BookingStatus.CREATED, threshold);
-        late.forEach(Booking::markNoShow);
+        late.forEach(b -> {
+            b.markNoShow();
+            events.record(Topics.BOOKINGS, b.getId(), "booking.noshow",
+                    new EventPayloads.BookingNoShow(b.getId(), b.getUserId(), b.getMachineId(), b.getStartTime()));
+        });
         return late.stream().map(BookingResponse::from).toList();
     }
 }

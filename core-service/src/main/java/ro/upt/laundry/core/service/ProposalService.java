@@ -7,6 +7,9 @@ import org.springframework.transaction.annotation.Transactional;
 import ro.upt.laundry.core.dto.CreateProposalRequest;
 import ro.upt.laundry.core.dto.ProposalResponse;
 import ro.upt.laundry.core.exception.ApiException;
+import ro.upt.laundry.core.events.EventPayloads;
+import ro.upt.laundry.core.events.EventRecorder;
+import ro.upt.laundry.core.events.Topics;
 import ro.upt.laundry.core.model.*;
 import ro.upt.laundry.core.repository.MachineRepository;
 import ro.upt.laundry.core.repository.ProposalRepository;
@@ -22,13 +25,15 @@ public class ProposalService {
     private final MachineRepository machines;
     private final UserRepository users;
     private final BookingService bookingService;
+    private final EventRecorder events;
 
     public ProposalService(ProposalRepository proposals, MachineRepository machines,
-                           UserRepository users, BookingService bookingService) {
+                           UserRepository users, BookingService bookingService, EventRecorder events) {
         this.proposals = proposals;
         this.machines = machines;
         this.users = users;
         this.bookingService = bookingService;
+        this.events = events;
     }
 
     @Transactional
@@ -54,6 +59,9 @@ public class ProposalService {
         try {
             Proposal saved = proposals.saveAndFlush(new Proposal(
                     req.kind(), req.targetId(), req.reason().strip(), severity, Instant.now()));
+            events.record(Topics.PROPOSALS, saved.getId(), "proposal.created",
+                    new EventPayloads.ProposalCreated(saved.getId(), saved.getKind(), saved.getTargetId(),
+                            saved.getReason(), saved.getSeverity(), saved.getStatus()));
             return ProposalResponse.from(saved);
         } catch (DataIntegrityViolationException e) {
             throw new ApiException(HttpStatus.CONFLICT, "A PENDING proposal already exists for this target");
@@ -87,9 +95,16 @@ public class ProposalService {
                 throw new ApiException(HttpStatus.CONFLICT, "Machine is already under maintenance");
             }
             machine.markMaintenance();
+            p.decide(ProposalStatus.APPROVED, adminId, now);
+            // Event order (docs/events.md): proposal.approved, maintenance.opened, then booking.cancelled per booking
+            recordDecided(p, "proposal.approved");
+            events.record(Topics.DEVICES, machine.getId(), "maintenance.opened",
+                    new EventPayloads.MaintenanceOpened(machine.getId(), p.getId(), now));
             bookingService.cancelUpcomingForMachine(machine.getId());
+        } else {
+            p.decide(ProposalStatus.APPROVED, adminId, now);
+            recordDecided(p, "proposal.approved");
         }
-        p.decide(ProposalStatus.APPROVED, adminId, now);
         return ProposalResponse.from(p);
     }
 
@@ -98,7 +113,13 @@ public class ProposalService {
         requireAdmin(adminId);
         Proposal p = lockPending(id);
         p.decide(ProposalStatus.REJECTED, adminId, Instant.now());
+        recordDecided(p, "proposal.rejected");
         return ProposalResponse.from(p);
+    }
+
+    private void recordDecided(Proposal p, String type) {
+        events.record(Topics.PROPOSALS, p.getId(), type,
+                new EventPayloads.ProposalDecided(p.getId(), p.getDecidedBy(), p.getDecidedAt()));
     }
 
     private Proposal lockPending(Long id) {

@@ -132,7 +132,14 @@ Business rules:
 
 ## Kafka integration points
 
-core-service does not publish yet. The events in `docs/events.md` should be sent **after the database transaction commits**, from these places (the service methods already return the data needed):
+core-service publishes the events from `docs/events.md` through the `events` package:
+
+- `EventRecorder.record(topic, key, type, payload)` is called inside the `@Transactional` service methods. It only raises an in-memory Spring event.
+- `KafkaEventRelay` (`@TransactionalEventListener(AFTER_COMMIT)`) wraps it in the common envelope (`eventId`, `type`, `version`, `occurredAt`, `payload`) and sends it to Kafka **only after the transaction commits**. On rollback nothing is sent.
+- The message key is the entity id (`bookingId`, `machineId`, `proposalId`, `feedbackId`), so events of one entity stay in order.
+- Producer: `acks=all`, idempotence enabled. Kafka address: `KAFKA_BOOTSTRAP_SERVERS` (default `localhost:9092`).
+
+Where each event is recorded:
 
 | Where | Event(s) |
 |---|---|
