@@ -54,6 +54,9 @@ Every event has the same outer structure:
 ```json
 { "bookingId": 42, "userId": 7, "machineId": 3, "reason": "user_cancelled" }
 ```
+`reason` is one of:
+- `user_cancelled` – the student cancelled the booking
+- `maintenance` – the machine went into maintenance (an approved `MAINTENANCE` proposal cancels its upcoming bookings; one event per cancelled booking)
 
 ### `booking.started`
 The student pressed "Am început".
@@ -112,12 +115,15 @@ Created by the AI agent through the MCP server; status is always `PENDING`.
   "status": "PENDING"
 }
 ```
-`kind` is `MAINTENANCE` (targetId = machineId) or `PENALTY` (targetId = userId). `severity` is `LOW`, `MEDIUM` or `HIGH`.
+`kind` is `MAINTENANCE` (targetId = machineId) or `PENALTY` (targetId = userId). `severity` is `LOW`, `MEDIUM` or `HIGH`: required for `MAINTENANCE`; for `PENALTY` it is optional and core-service defaults it to `MEDIUM`, so the event always contains a value.
 
 ### `proposal.approved` / `proposal.rejected`
 ```json
 { "proposalId": 9, "decidedBy": 1, "decidedAt": "2026-11-16T08:30:00Z" }
 ```
+Penalties have no dedicated event: an approved `PENALTY` is visible only as `proposal.approved` (its effect on the student is still an open team decision).
+
+Approving a `MAINTENANCE` proposal publishes, in this order: `proposal.approved`, `maintenance.opened`, then one `booking.cancelled` with `reason: "maintenance"` per cancelled booking.
 
 ## Rules
 

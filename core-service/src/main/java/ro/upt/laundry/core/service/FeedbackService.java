@@ -6,6 +6,9 @@ import org.springframework.transaction.annotation.Transactional;
 import ro.upt.laundry.core.dto.CreateFeedbackRequest;
 import ro.upt.laundry.core.dto.FeedbackResponse;
 import ro.upt.laundry.core.exception.ApiException;
+import ro.upt.laundry.core.events.EventPayloads;
+import ro.upt.laundry.core.events.EventRecorder;
+import ro.upt.laundry.core.events.Topics;
 import ro.upt.laundry.core.model.Feedback;
 import ro.upt.laundry.core.repository.FeedbackRepository;
 import ro.upt.laundry.core.repository.UserRepository;
@@ -18,10 +21,12 @@ public class FeedbackService {
 
     private final FeedbackRepository feedback;
     private final UserRepository users;
+    private final EventRecorder events;
 
-    public FeedbackService(FeedbackRepository feedback, UserRepository users) {
+    public FeedbackService(FeedbackRepository feedback, UserRepository users, EventRecorder events) {
         this.feedback = feedback;
         this.users = users;
+        this.events = events;
     }
 
     @Transactional
@@ -30,6 +35,9 @@ public class FeedbackService {
             throw new ApiException(HttpStatus.NOT_FOUND, "User not found: " + req.userId());
         }
         Feedback saved = feedback.save(new Feedback(req.userId(), req.message().strip(), Instant.now()));
+        events.record(Topics.FEEDBACK, saved.getId(), "feedback.submitted",
+                new EventPayloads.FeedbackSubmitted(saved.getId(), saved.getUserId(), saved.getMessage(),
+                        saved.getSubmittedAt()));
         return FeedbackResponse.from(saved);
     }
 

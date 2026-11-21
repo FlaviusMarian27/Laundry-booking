@@ -6,6 +6,9 @@ import org.springframework.transaction.annotation.Transactional;
 import ro.upt.laundry.core.dto.CreateFaultRequest;
 import ro.upt.laundry.core.dto.FaultResponse;
 import ro.upt.laundry.core.exception.ApiException;
+import ro.upt.laundry.core.events.EventPayloads;
+import ro.upt.laundry.core.events.EventRecorder;
+import ro.upt.laundry.core.events.Topics;
 import ro.upt.laundry.core.model.Fault;
 import ro.upt.laundry.core.repository.FaultRepository;
 import ro.upt.laundry.core.repository.MachineRepository;
@@ -20,11 +23,14 @@ public class FaultService {
     private final FaultRepository faults;
     private final MachineRepository machines;
     private final UserRepository users;
+    private final EventRecorder events;
 
-    public FaultService(FaultRepository faults, MachineRepository machines, UserRepository users) {
+    public FaultService(FaultRepository faults, MachineRepository machines, UserRepository users,
+                        EventRecorder events) {
         this.faults = faults;
         this.machines = machines;
         this.users = users;
+        this.events = events;
     }
 
     @Transactional
@@ -37,6 +43,9 @@ public class FaultService {
         }
         Fault saved = faults.save(
                 new Fault(req.machineId(), req.reportedBy(), req.description().strip(), Instant.now()));
+        events.record(Topics.DEVICES, saved.getMachineId(), "fault.reported",
+                new EventPayloads.FaultReported(saved.getId(), saved.getMachineId(), saved.getReportedBy(),
+                        saved.getDescription(), saved.getReportedAt()));
         return FaultResponse.from(saved);
     }
 
