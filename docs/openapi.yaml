@@ -1,0 +1,538 @@
+openapi: 3.1.0
+info:
+  title: Laundry Booking - core-service
+  description: "REST API: bookings, machines, faults, feedback, proposals"
+  version: 1.0.0
+servers:
+- url: http://localhost:8081
+  description: Generated server url
+paths:
+  /proposals:
+    get:
+      tags:
+      - proposal-controller
+      operationId: list
+      parameters:
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - PENDING
+          - APPROVED
+          - REJECTED
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProposalResponse"
+    post:
+      tags:
+      - proposal-controller
+      operationId: create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProposalRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProposalResponse"
+  /proposals/{id}/reject:
+    post:
+      tags:
+      - proposal-controller
+      operationId: reject
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecideProposalRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProposalResponse"
+  /proposals/{id}/approve:
+    post:
+      tags:
+      - proposal-controller
+      operationId: approve
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecideProposalRequest"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProposalResponse"
+  /machines/{id}/maintenance/close:
+    post:
+      tags:
+      - machine-controller
+      operationId: closeMaintenance
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/MachineResponse"
+  /feedback:
+    get:
+      tags:
+      - feedback-controller
+      operationId: list_1
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FeedbackResponse"
+    post:
+      tags:
+      - feedback-controller
+      operationId: submit
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFeedbackRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/FeedbackResponse"
+  /faults:
+    get:
+      tags:
+      - fault-controller
+      operationId: list_2
+      parameters:
+      - name: machineId
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/FaultResponse"
+    post:
+      tags:
+      - fault-controller
+      operationId: report
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFaultRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/FaultResponse"
+  /bookings:
+    get:
+      tags:
+      - booking-controller
+      operationId: listByUser
+      parameters:
+      - name: userId
+        in: query
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BookingResponse"
+    post:
+      tags:
+      - booking-controller
+      operationId: create_1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBookingRequest"
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BookingResponse"
+  /bookings/{id}/start:
+    post:
+      tags:
+      - booking-controller
+      operationId: start
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BookingResponse"
+  /bookings/{id}/cancel:
+    post:
+      tags:
+      - booking-controller
+      operationId: cancel
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BookingResponse"
+  /proposals/{id}:
+    get:
+      tags:
+      - proposal-controller
+      operationId: get
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProposalResponse"
+  /machines:
+    get:
+      tags:
+      - machine-controller
+      operationId: list_3
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MachineResponse"
+  /machines/{id}/bookings:
+    get:
+      tags:
+      - machine-controller
+      operationId: activeBookings
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BookingResponse"
+  /bookings/{id}:
+    get:
+      tags:
+      - booking-controller
+      operationId: get_1
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BookingResponse"
+components:
+  schemas:
+    CreateProposalRequest:
+      type: object
+      properties:
+        kind:
+          type: string
+          enum:
+          - MAINTENANCE
+          - PENALTY
+        targetId:
+          type: integer
+          format: int64
+        reason:
+          type: string
+          maxLength: 500
+          minLength: 0
+        severity:
+          type: string
+          enum:
+          - LOW
+          - MEDIUM
+          - HIGH
+      required:
+      - kind
+      - reason
+      - targetId
+    ProposalResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        kind:
+          type: string
+          enum:
+          - MAINTENANCE
+          - PENALTY
+        targetId:
+          type: integer
+          format: int64
+        reason:
+          type: string
+        severity:
+          type: string
+          enum:
+          - LOW
+          - MEDIUM
+          - HIGH
+        status:
+          type: string
+          enum:
+          - PENDING
+          - APPROVED
+          - REJECTED
+        createdAt:
+          type: string
+          format: date-time
+        decidedBy:
+          type: integer
+          format: int64
+        decidedAt:
+          type: string
+          format: date-time
+    DecideProposalRequest:
+      type: object
+      properties:
+        decidedBy:
+          type: integer
+          format: int64
+      required:
+      - decidedBy
+    MachineResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        type:
+          type: string
+          enum:
+          - WASHER
+          - DRYER
+        building:
+          type: string
+        status:
+          type: string
+          enum:
+          - AVAILABLE
+          - MAINTENANCE
+    CreateFeedbackRequest:
+      type: object
+      properties:
+        userId:
+          type: integer
+          format: int64
+        message:
+          type: string
+          maxLength: 2000
+          minLength: 0
+      required:
+      - message
+      - userId
+    FeedbackResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        message:
+          type: string
+        submittedAt:
+          type: string
+          format: date-time
+    CreateFaultRequest:
+      type: object
+      properties:
+        machineId:
+          type: integer
+          format: int64
+        reportedBy:
+          type: integer
+          format: int64
+        description:
+          type: string
+          maxLength: 500
+          minLength: 0
+      required:
+      - description
+      - machineId
+      - reportedBy
+    FaultResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        machineId:
+          type: integer
+          format: int64
+        reportedBy:
+          type: integer
+          format: int64
+        description:
+          type: string
+        reportedAt:
+          type: string
+          format: date-time
+    CreateBookingRequest:
+      type: object
+      properties:
+        userId:
+          type: integer
+          format: int64
+        machineId:
+          type: integer
+          format: int64
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+      required:
+      - endTime
+      - machineId
+      - startTime
+      - userId
+    BookingResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        machineId:
+          type: integer
+          format: int64
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+          - CREATED
+          - STARTED
+          - CANCELLED
+          - NO_SHOW
+        startedAt:
+          type: string
+          format: date-time

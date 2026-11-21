@@ -10,6 +10,10 @@ Laundry-booking/
 │   │   ├── service/           # business logic
 │   │   ├── repository/        # PostgreSQL access
 │   │   ├── model/             # entities (Booking, Machine, Fault, Proposal)
+│   │   ├── dto/
+│   │   ├── config/
+│   │   ├── exception/
+│   │   ├── scheduler/
 │   │   └── kafka/             # event producer
 │   ├── src/main/resources/application.yml
 │   ├── pom.xml
